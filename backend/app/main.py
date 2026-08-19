@@ -153,3 +153,36 @@ def add_laptop(
         if image_url and os.path.exists(filepath):
             os.remove(filepath)
         raise HTTPException(status_code=500, detail=f"Database insertion error: {str(e)}")
+
+@app.delete("/api/laptops/{laptop_id}")
+def delete_laptop(laptop_id: int, db: Session = Depends(get_db)):
+    """
+    Delete a laptop from the database and remove its uploaded image from disk if exists.
+    """
+    try:
+        # Get laptop first to inspect image path
+        db_laptop = db.query(models.Laptop).filter(models.Laptop.id == laptop_id).first()
+        if not db_laptop:
+            raise HTTPException(status_code=404, detail="Laptop not found")
+        
+        image_url = db_laptop.image_url
+        
+        # Delete database record
+        crud.delete_laptop(db, laptop_id)
+        
+        # Delete file from upload directory
+        if image_url:
+            filename = image_url.split("/")[-1]
+            filepath = os.path.join(UPLOAD_DIR, filename)
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                    print(f"DEBUG: Deleted image file {filepath}")
+                except Exception as file_error:
+                    print(f"ERROR: Could not delete file {filepath}: {str(file_error)}")
+                    
+        return {"detail": "Laptop successfully deleted."}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database deletion error: {str(e)}")
