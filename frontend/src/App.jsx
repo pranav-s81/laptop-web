@@ -3,7 +3,6 @@ import {
   ShoppingCart,
   Star,
   ChevronRight,
-  Check,
   ArrowRightLeft,
   Search,
   Plus,
@@ -12,7 +11,10 @@ import {
   SlidersHorizontal,
   Sparkles,
   Layers,
-  Laptop
+  Laptop,
+  Cpu,
+  DollarSign,
+  Zap
 } from 'lucide-react';
 
 const API_BASE_URL = 'http://localhost:8000';
@@ -48,6 +50,13 @@ function App() {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [formError, setFormError] = useState(null);
+  const [shakeError, setShakeError] = useState(false);
+
+  const triggerFormError = (msg) => {
+    setFormError(msg);
+    setShakeError(true);
+    setTimeout(() => setShakeError(false), 500);
+  };
 
   // Filters State
   const [filterBrand, setFilterBrand] = useState('All');
@@ -123,15 +132,15 @@ function App() {
     setSuccessMessage(null);
 
     if (!brand.trim()) {
-      setFormError('Please enter a laptop brand.');
+      triggerFormError('Please enter a laptop brand.');
       return;
     }
     if (!model.trim()) {
-      setFormError('Please enter a laptop model/name.');
+      triggerFormError('Please enter a laptop model/name.');
       return;
     }
     if (!price || isNaN(price) || parseFloat(price) < 0) {
-      setFormError('Please enter a valid laptop price.');
+      triggerFormError('Please enter a valid laptop price.');
       return;
     }
 
@@ -174,7 +183,7 @@ function App() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       console.error(err);
-      setFormError(err.message || 'An error occurred while saving.');
+      triggerFormError(err.message || 'An error occurred while saving.');
     } finally {
       setIsSaving(false);
     }
@@ -211,6 +220,26 @@ function App() {
     setCurrentView('add');
   };
 
+  const handleDeleteLaptop = async (laptopId, laptopName) => {
+    if (!window.confirm(`Are you sure you want to delete "${laptopName}" and its uploaded photo from the server?`)) {
+      return;
+    }
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/laptops/${laptopId}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.detail || 'Failed to delete laptop.');
+      }
+      setSuccessMessage(`Successfully deleted "${laptopName}" from the catalog.`);
+      await fetchLaptops();
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Failed to delete laptop.');
+    }
+  };
+
   // Unique brands list for filters
   const uniqueBrands = ['All', ...new Set(laptops.map(l => l.brand))].sort();
 
@@ -234,12 +263,19 @@ function App() {
   const highEndCount = laptops.filter(l => l.spec_range && (l.spec_range.includes('High-End') || l.spec_range.includes('Premium'))).length;
 
   return (
-    <div className="min-h-screen bg-surface font-hanken text-on-surface flex flex-col">
+    <div className="min-h-screen font-hanken text-on-surface flex flex-col relative">
+      {/* Animated background mesh */}
+      <div className="bg-mesh" aria-hidden="true">
+        <span className="blob blob-a" />
+        <span className="blob blob-b" />
+        <span className="blob blob-c" />
+      </div>
+
       {/* Top Banner Navbar */}
       <header className="bg-surface-container-lowest border-b border-outline-variant sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 h-18 flex justify-between items-center py-4">
           <div
-            className="flex items-center gap-2 cursor-pointer"
+            className="flex items-center gap-2 cursor-pointer transition-all hover:opacity-85 active:scale-95"
             onClick={() => { setCurrentView('catalog'); setSelectedLaptop(null); }}
           >
             <div className="bg-primary text-white p-2 rounded-xl shadow-md">
@@ -254,14 +290,21 @@ function App() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => { setCurrentView('catalog'); setSelectedLaptop(null); }}
-              className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${currentView === 'catalog' ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low'
+              className={`px-4 py-2 rounded-lg font-bold text-sm tab-interactive transition-all ${currentView === 'catalog' ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low'
                 }`}
             >
               Browse Catalog
             </button>
             <button
+              onClick={() => { setCurrentView('admin'); setSelectedLaptop(null); }}
+              className={`px-4 py-2 rounded-lg font-bold text-sm tab-interactive transition-all ${currentView === 'admin' ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low'
+                }`}
+            >
+              Admin Panel
+            </button>
+            <button
               onClick={() => { setCurrentView('add'); }}
-              className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-1.5 transition-all ${currentView === 'add' ? 'bg-primary text-white' : 'bg-surface border border-outline hover:bg-surface-container-low'
+              className={`px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-1.5 btn-interactive transition-all ${currentView === 'add' ? 'bg-primary text-white' : 'bg-surface border border-outline hover:bg-surface-container-low'
                 }`}
             >
               <Plus size={16} />
@@ -275,12 +318,12 @@ function App() {
       <main className="flex-grow max-w-7xl w-full mx-auto px-6 py-8">
         {/* Global Notifications */}
         {error && (
-          <div className="mb-6 p-4 bg-error/10 border border-error/30 text-error rounded-xl flex items-center gap-2 font-medium">
+          <div className="mb-6 p-4 bg-error/10 border border-error/30 text-error rounded-xl flex items-center gap-2 font-medium animate-shake">
             ⚠️ {error}
           </div>
         )}
         {successMessage && (
-          <div className="mb-6 p-4 bg-success-container text-success border border-success/30 rounded-xl flex items-center gap-2 font-medium">
+          <div className="mb-6 p-4 bg-success-container text-success border border-success/30 rounded-xl flex items-center gap-2 font-medium animate-scale-in">
             ✅ {successMessage}
           </div>
         )}
@@ -290,9 +333,9 @@ function App() {
           <div className="space-y-8">
             {/* Quick Metrics */}
             <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="p-6 bg-surface-container-lowest border border-outline-variant rounded-2xl flex items-center gap-4 shadow-sm">
-                <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center font-bold text-xl">
-                  💻
+              <div className="p-6 bg-surface-container-lowest border border-outline-variant rounded-2xl flex items-center gap-4 shadow-sm animate-fade-in-up hover-lift">
+                <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
+                  <Layers size={22} />
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Catalog Size</h4>
@@ -300,9 +343,9 @@ function App() {
                 </div>
               </div>
 
-              <div className="p-6 bg-surface-container-lowest border border-outline-variant rounded-2xl flex items-center gap-4 shadow-sm">
-                <div className="w-12 h-12 bg-success-container text-success rounded-xl flex items-center justify-center font-bold text-xl">
-                  💰
+              <div className="p-6 bg-surface-container-lowest border border-outline-variant rounded-2xl flex items-center gap-4 shadow-sm animate-fade-in-up delay-75 hover-lift">
+                <div className="w-12 h-12 bg-success-container text-success rounded-xl flex items-center justify-center">
+                  <DollarSign size={22} />
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Avg Catalog Price</h4>
@@ -310,9 +353,9 @@ function App() {
                 </div>
               </div>
 
-              <div className="p-6 bg-surface-container-lowest border border-outline-variant rounded-2xl flex items-center gap-4 shadow-sm">
-                <div className="w-12 h-12 bg-yellow-500/10 text-yellow-600 rounded-xl flex items-center justify-center font-bold text-xl">
-                  ⚡
+              <div className="p-6 bg-surface-container-lowest border border-outline-variant rounded-2xl flex items-center gap-4 shadow-sm animate-fade-in-up delay-150 hover-lift">
+                <div className="w-12 h-12 bg-yellow-500/10 text-yellow-600 rounded-xl flex items-center justify-center">
+                  <Zap size={22} />
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">High-End & Gaming</h4>
@@ -322,7 +365,7 @@ function App() {
             </section>
 
             {/* Filters Dashboard */}
-            <section className="p-6 bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-sm space-y-4">
+            <section className="p-6 bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-sm space-y-4 animate-fade-in-up delay-225">
               <form onSubmit={handleSearchSubmit} className="flex gap-2">
                 <div className="relative flex-grow">
                   <Search className="absolute left-3.5 top-3.5 text-on-surface-variant" size={18} />
@@ -331,21 +374,21 @@ function App() {
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
                     placeholder="Search by Laptop name, CPU, GPU, brand, specs..."
-                    className="w-full pl-10 pr-4 py-3 bg-surface border border-outline rounded-xl outline-none focus:border-primary transition-all font-medium"
+                    className="w-full pl-10 pr-4 py-3 bg-surface border border-outline rounded-xl outline-none focus:border-primary transition-all font-medium focus:ring-4 focus:ring-primary/10"
                   />
                 </div>
                 {searchedTerm && (
                   <button
                     type="button"
                     onClick={handleClearSearch}
-                    className="px-4 py-3 bg-surface border border-outline hover:bg-surface-container-low rounded-xl font-bold transition-all"
+                    className="px-4 py-3 bg-surface border border-outline hover:bg-surface-container-low rounded-xl font-bold btn-interactive transition-all"
                   >
                     Clear
                   </button>
                 )}
                 <button
                   type="submit"
-                  className="px-6 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary-dim transition-all"
+                  className="px-6 py-3 bg-primary text-white rounded-xl font-bold btn-interactive hover:bg-primary-dim transition-all"
                 >
                   Search
                 </button>
@@ -413,7 +456,7 @@ function App() {
                       filteredLaptops.map(laptop => (
                         <div
                           key={laptop.id}
-                          className="bg-surface-container-lowest border border-outline-variant rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:border-primary/40 transition-all flex flex-col group cursor-pointer"
+                          className="bg-surface-container-lowest border border-outline-variant rounded-2xl overflow-hidden shadow-sm hover-lift flex flex-col group cursor-pointer animate-scale-in"
                           onClick={() => {
                             setSelectedLaptop(laptop);
                             setSelectedImage(0);
@@ -425,11 +468,11 @@ function App() {
                               <img
                                 src={`${API_BASE_URL}${laptop.image_url}`}
                                 alt={laptop.model}
-                                className="w-full h-full object-cover group-hover:scale-104 transition-all"
+                                className="w-full h-full object-cover img-zoom"
                               />
                             ) : (
                               <div className="text-center text-on-surface-variant">
-                                <span className="text-4xl block mb-1">💻</span>
+                                <Laptop size={36} className="mx-auto mb-1 opacity-60" />
                                 <span className="text-xs font-bold uppercase tracking-wider opacity-60">No Photo</span>
                               </div>
                             )}
@@ -474,7 +517,7 @@ function App() {
                       ))
                     ) : (
                       <div className="col-span-full py-20 bg-surface-container-lowest border border-outline-variant rounded-2xl text-center space-y-4">
-                        <span className="text-5xl block">🔍</span>
+                        <Search size={40} className="mx-auto text-on-surface-variant opacity-60" />
                         <h3 className="text-xl font-bold">Laptop Model Not Found</h3>
                         <p className="text-on-surface-variant max-w-md mx-auto">
                           We don't have catalog entries matching your query. Would you like to add it?
@@ -498,7 +541,7 @@ function App() {
 
         {/* 2. PRODUCT DETAIL VIEW (MATCHING PROVIDED UI DESIGN TEMPLATE) */}
         {currentView === 'detail' && selectedLaptop && (
-          <div>
+          <div className="animate-fade-in-up">
             {/* Navigation Breadcrumbs */}
             <nav className="flex items-center gap-2 text-sm text-on-surface-variant mb-6">
               <span className="cursor-pointer hover:underline" onClick={() => setCurrentView('catalog')}>Catalog</span>
@@ -561,7 +604,7 @@ function App() {
                     )
                   ) : (
                     <div className="text-center text-on-surface-variant">
-                      <span className="text-6xl block mb-2">💻</span>
+                      <Laptop size={56} className="mx-auto mb-2 opacity-40" />
                       <span className="text-xs font-bold uppercase tracking-wider opacity-60">No Photo Uploaded</span>
                     </div>
                   )}
@@ -701,7 +744,7 @@ function App() {
 
         {/* 3. ADD LAPTOP SPEC FORM VIEW */}
         {currentView === 'add' && (
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-3xl mx-auto animate-fade-in-up">
             <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl shadow-xl overflow-hidden">
               <div className="bg-surface-container-low border-b border-outline-variant p-6 md:p-8">
                 <h2 className="text-2xl font-black text-on-surface flex items-center gap-2">
@@ -714,7 +757,7 @@ function App() {
 
               <form onSubmit={handleFormSubmit} className="p-6 md:p-8 space-y-6">
                 {formError && (
-                  <div className="p-4 bg-error/10 border border-error/30 text-error rounded-xl font-bold text-sm">
+                  <div className={`p-4 bg-error/10 border border-error/30 text-error rounded-xl font-bold text-sm ${shakeError ? 'animate-shake' : ''}`}>
                     ⚠️ {formError}
                   </div>
                 )}
@@ -931,6 +974,141 @@ function App() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* 4. ADMIN PANEL VIEW */}
+        {currentView === 'admin' && (
+          <div className="space-y-8 animate-fade-in-up">
+            {/* Header Section */}
+            <div className="bg-surface-container-lowest border border-outline-variant p-6 rounded-3xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h2 className="text-3xl font-extrabold text-on-surface">⚙️ Administrative Dashboard</h2>
+                <p className="text-sm text-on-surface-variant font-medium mt-1">
+                  Preview uploaded images, audit specifications records, and manage the catalog database.
+                </p>
+              </div>
+              <button
+                onClick={() => setCurrentView('add')}
+                className="px-5 py-3 bg-primary text-white font-bold rounded-xl btn-interactive hover:bg-primary-dim transition-all shadow-md flex items-center gap-1.5"
+              >
+                <Plus size={16} /> Add Laptop
+              </button>
+            </div>
+
+            {/* Quick Metrics */}
+            <section className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div className="p-6 bg-surface-container-lowest border border-outline-variant rounded-2xl flex items-center gap-4 shadow-sm hover-lift">
+                <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center font-bold text-xl">
+                  📝
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Total Rows</h4>
+                  <p className="text-2xl font-black">{laptops.length} items</p>
+                </div>
+              </div>
+
+              <div className="p-6 bg-surface-container-lowest border border-outline-variant rounded-2xl flex items-center gap-4 shadow-sm hover-lift delay-75">
+                <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-xl flex items-center justify-center font-bold text-xl">
+                  📸
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Uploaded Photos</h4>
+                  <p className="text-2xl font-black">{laptops.filter(l => l.image_url).length} files</p>
+                </div>
+              </div>
+
+              <div className="p-6 bg-surface-container-lowest border border-outline-variant rounded-2xl flex items-center gap-4 shadow-sm hover-lift delay-150">
+                <div className="w-12 h-12 bg-amber-500/10 text-amber-600 rounded-xl flex items-center justify-center font-bold text-xl">
+                  💳
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Cumulative Value</h4>
+                  <p className="text-2xl font-black">${laptops.reduce((sum, l) => sum + l.price, 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                </div>
+              </div>
+            </section>
+
+            {/* Admin Table Card */}
+            <div className="bg-surface-container-lowest border border-outline-variant rounded-3xl shadow-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-surface-container-low border-b border-outline-variant text-xs font-black text-on-surface-variant uppercase tracking-wider">
+                      <th className="py-4 px-6 w-16">ID</th>
+                      <th className="py-4 px-6 w-32">Uploaded Image</th>
+                      <th className="py-4 px-6">Laptop Description</th>
+                      <th className="py-4 px-6 w-36">Specifications</th>
+                      <th className="py-4 px-6 w-32">Price</th>
+                      <th className="py-4 px-6 w-28 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-outline-variant">
+                    {laptops.length > 0 ? (
+                      laptops.map(laptop => (
+                        <tr key={laptop.id} className="hover:bg-surface-container-low/40 transition-colors text-sm font-medium">
+                          <td className="py-4 px-6 font-mono text-on-surface-variant">#{laptop.id}</td>
+                          <td className="py-4 px-6">
+                            <div className="w-24 h-16 rounded-xl bg-surface-container-low overflow-hidden border border-outline-variant flex items-center justify-center relative group">
+                              {laptop.image_url ? (
+                                <>
+                                  <img 
+                                    src={`${API_BASE_URL}${laptop.image_url}`} 
+                                    alt={laptop.model}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-all"
+                                  />
+                                  <a 
+                                    href={`${API_BASE_URL}${laptop.image_url}`} 
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-bold uppercase transition-all"
+                                  >
+                                    View Full
+                                  </a>
+                                </>
+                              ) : (
+                                <span className="text-[10px] font-bold text-on-surface-variant opacity-50 uppercase">No Image</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-4 px-6">
+                            <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider rounded-md">
+                              {laptop.brand}
+                            </span>
+                            <h4 className="font-extrabold text-base text-on-surface mt-1">{laptop.model}</h4>
+                            <p className="text-xs text-on-surface-variant line-clamp-1 mt-0.5">{laptop.description || 'No description provided.'}</p>
+                          </td>
+                          <td className="py-4 px-6">
+                            <div className="space-y-1 text-xs">
+                              {laptop.processor && <div className="truncate"><span className="opacity-50">CPU:</span> <span className="font-mono">{laptop.processor}</span></div>}
+                              {laptop.ram && <div><span className="opacity-50">RAM:</span> <span className="font-mono">{laptop.ram}GB</span></div>}
+                              {laptop.gpu && <div className="truncate"><span className="opacity-50">GPU:</span> <span className="font-mono">{laptop.gpu}</span></div>}
+                            </div>
+                          </td>
+                          <td className="py-4 px-6 font-extrabold text-base">
+                            ${laptop.price.toLocaleString()}
+                          </td>
+                          <td className="py-4 px-6 text-center">
+                            <button
+                              onClick={() => handleDeleteLaptop(laptop.id, `${laptop.brand} ${laptop.model}`)}
+                              className="px-4 py-2 bg-error/10 hover:bg-error hover:text-white text-error rounded-xl font-bold text-xs btn-interactive transition-all"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="6" className="py-12 text-center text-on-surface-variant font-bold">
+                          No laptops recorded in PostgreSQL. Add one to see it managed here.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

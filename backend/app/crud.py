@@ -59,3 +59,14 @@ def create_laptop(
     db.commit()
     db.refresh(db_laptop)
     return db_laptop
+
+def delete_laptop(db: Session, laptop_id: int):
+    """
+    Deletes a Laptop record from the database by ID.
+    """
+    db_laptop = db.query(models.Laptop).filter(models.Laptop.id == laptop_id).first()
+    if db_laptop:
+        db.delete(db_laptop)
+        db.commit()
+        return db_laptop
+    return None
